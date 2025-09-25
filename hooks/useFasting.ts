@@ -17,63 +17,6 @@ export const useFasting = () => {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  useEffect(() => {
-    loadFastingState();
-  }, []);
-
-  // Update current time every minute when fasting is active
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (fastingState.isActive) {
-      interval = setInterval(() => {
-        const now = new Date();
-        setCurrentTime(now);
-        
-        // Check if fasting period has ended
-        if (fastingState.endTime && now >= fastingState.endTime) {
-          completeFasting();
-        }
-      }, 1000); // Update every second for smooth countdown
-    }
-    
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [fastingState.isActive, fastingState.endTime, completeFasting]);
-
-  const loadFastingState = async () => {
-    try {
-      const savedState = await storageService.getFastingState();
-      if (savedState) {
-        // Check if the saved fasting session is still active
-        const now = new Date();
-        if (savedState.endTime && now < savedState.endTime) {
-          setFastingState(savedState);
-          setCurrentTime(now);
-        } else {
-          // Session has ended, complete it and clear state
-          if (savedState.currentSession) {
-            const completedSession: FastingSession = {
-              ...savedState.currentSession,
-              endTime: savedState.endTime,
-              completed: true,
-              duration: savedState.method.fastingHours * 60,
-            };
-            await storageService.saveFastingSession(completedSession);
-          }
-          await storageService.clearFastingState();
-        }
-      }
-    } catch (error) {
-      console.error('Error loading fasting state:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const completeFasting = useCallback(async () => {
     try {
       if (fastingState.currentSession) {
@@ -103,6 +46,36 @@ export const useFasting = () => {
       console.error('Error completing fasting:', error);
     }
   }, [fastingState]);
+
+  const loadFastingState = useCallback(async () => {
+    try {
+      const savedState = await storageService.getFastingState();
+      if (savedState) {
+        // Check if the saved fasting session is still active
+        const now = new Date();
+        if (savedState.endTime && now < savedState.endTime) {
+          setFastingState(savedState);
+          setCurrentTime(now);
+        } else {
+          // Session has ended, complete it and clear state
+          if (savedState.currentSession) {
+            const completedSession: FastingSession = {
+              ...savedState.currentSession,
+              endTime: savedState.endTime,
+              completed: true,
+              duration: savedState.method.fastingHours * 60,
+            };
+            await storageService.saveFastingSession(completedSession);
+          }
+          await storageService.clearFastingState();
+        }
+      }
+    } catch (error) {
+      console.error('Error loading fasting state:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const startFasting = useCallback(async (method: FastingMethod) => {
     try {
@@ -212,6 +185,33 @@ export const useFasting = () => {
     if (!fastingState.startTime || !fastingState.endTime) return 0;
     return dateUtils.getProgressPercentage(fastingState.startTime, fastingState.endTime, currentTime);
   }, [fastingState.startTime, fastingState.endTime, currentTime]);
+
+  useEffect(() => {
+    loadFastingState();
+  }, [loadFastingState]);
+
+  // Update current time every minute when fasting is active
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (fastingState.isActive) {
+      interval = setInterval(() => {
+        const now = new Date();
+        setCurrentTime(now);
+        
+        // Check if fasting period has ended
+        if (fastingState.endTime && now >= fastingState.endTime) {
+          completeFasting();
+        }
+      }, 1000); // Update every second for smooth countdown
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [fastingState.isActive, fastingState.endTime, completeFasting]);
 
   return {
     fastingState,
