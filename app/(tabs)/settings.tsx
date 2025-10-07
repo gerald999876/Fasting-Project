@@ -135,10 +135,27 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Note: In a real app, you'd want to clear all stored data
-              // For now, we'll just show a confirmation
+              await storageService.clearAllData();
+              
+              // Reset local state to default values
+              const defaultSettings: UserSettings = {
+                preferredMethod: { id: '16_8', name: '16:8', fastingHours: 16, eatingHours: 8, description: '' },
+                notificationsEnabled: true,
+                fastingStartNotification: true,
+                fastingEndNotification: true,
+                reminderInterval: 60,
+                units: 'metric' as const,
+                darkMode: false,
+                onboardingCompleted: false,
+                isPremium: false,
+                premiumExpiryDate: undefined,
+                paywallSeen: false,
+              };
+              setSettings(defaultSettings);
+              
               Alert.alert('Success', 'All data has been cleared');
             } catch (error) {
+              console.error('Error clearing data:', error);
               Alert.alert('Error', 'Failed to clear data');
             }
           },

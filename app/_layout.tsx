@@ -18,11 +18,10 @@ export default function RootLayout() {
 
     initializePurchases().then(async () => {
       const offerings = await Purchases.getOfferings();
-
-      offerings && console.warn("offerings", JSON.stringify(offerings, null, 2));
-
-
+      const customerInfo = await Purchases.getCustomerInfo();
+      
       console.log('Purchases SDK initialized');
+      console.log('Premium status:', customerInfo.entitlements.active['premium'] !== undefined);
     }).catch(console.error);
   }, []);
 

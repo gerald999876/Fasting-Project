@@ -7,7 +7,7 @@
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build": "eas build --platform ios",
     "build:dev": "eas build --platform ios --profile development",
-    "submitos": "eas submit --platform ios",
+    "submit": "eas submit --platform ios",
     "lint": "expo lint"
   },
   "dependencies": {

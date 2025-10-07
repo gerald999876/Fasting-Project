@@ -733,6 +733,8 @@ export default function ProgressScreen() {
                 chartConfig={chartConfig}
                 style={styles.chart}
                 showValuesOnTopOfBars
+                yAxisLabel=""
+                yAxisSuffix=""
               />
             )}
           </View>

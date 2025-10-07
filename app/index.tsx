@@ -53,7 +53,7 @@ export default function IndexScreen() {
     );
   }
 
-  return <Redirect href={redirectPath} />;
+  return <Redirect href={redirectPath as any} />;
 }
 
 const styles = StyleSheet.create({

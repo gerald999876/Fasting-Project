@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Crown, X, Check, Star, TrendingUp, ChartBar as BarChart3, Calendar, Download, Headphones, Bell, Zap, Target, Award } from 'lucide-react-native';
 import { storageService } from '@/utils/storage';
-import { SUBSCRIPTION_PLANS } from '@/constants/premiumFeatures';
+import { useRevenueCat } from '@/hooks/useRevenueCat';
+import { PurchasesPackage } from 'react-native-purchases';
+import PurchasesUI from 'react-native-purchases-ui';
 
 const { width } = Dimensions.get('window');
 
@@ -48,8 +50,62 @@ const premiumFeatures = [
 ];
 
 export default function PaywallScreen() {
-  const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[1]); // Default to yearly (popular)
+  const { offerings, loading: rcLoading, purchasePackage, restorePurchases, isPremium } = useRevenueCat();
+  const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Show customer center if user has active subscription
+  React.useEffect(() => {
+    if (isPremium && !rcLoading) {
+      presentCustomerCenter();
+    }
+  }, [isPremium, rcLoading]);
+
+  const presentCustomerCenter = async () => {
+    try {
+      await PurchasesUI.presentCustomerCenter();
+      // Update premium status after customer center closes
+      const settings = await storageService.getUserSettings();
+      const customerInfo = await require('react-native-purchases').default.getCustomerInfo();
+      const isStillPremium = customerInfo.entitlements.active['premium'] !== undefined;
+      
+      await storageService.saveUserSettings({
+        ...settings,
+        isPremium: isStillPremium,
+      });
+      
+      if (!isStillPremium) {
+        // If subscription was cancelled, stay on paywall
+        return;
+      }
+      
+      // If still premium, go to main app
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Error presenting customer center:', error);
+      router.replace('/(tabs)');
+    }
+  };
+
+  // Set default selected package to monthly when offerings load
+  React.useEffect(() => {
+    if (offerings?.current?.monthly && !selectedPackage) {
+      setSelectedPackage(offerings.current.monthly);
+    }
+  }, [offerings, selectedPackage]);
+
+  if (rcLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading pricing...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const packages = offerings?.current?.availablePackages || [];
 
   const handleContinueWithFree = async () => {
     try {
@@ -66,41 +122,28 @@ export default function PaywallScreen() {
     }
   };
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async () => {
+    if (!selectedPackage) return;
+
     setLoading(true);
-    
     try {
-      // In a real app, this would integrate with RevenueCat or similar payment processor
-      // For demo purposes, we'll simulate a successful purchase
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Update user settings to premium
+      await purchasePackage(selectedPackage);
+
       const settings = await storageService.getUserSettings();
       await storageService.saveUserSettings({
         ...settings,
         isPremium: true,
-        premiumExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
       });
 
       Alert.alert(
         'Welcome to Premium! 🎉',
         'Thank you for upgrading! You now have access to all premium features.',
-        [
-          {
-            text: 'Start Using Premium',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]
+        [{ text: 'Start Using Premium', onPress: () => router.replace('/(tabs)') }]
       );
-    } catch (error) {
-      console.error('Error upgrading to premium:', error);
-      Alert.alert(
-        'Upgrade Failed',
-        'There was an issue processing your upgrade. Please try again.',
-        [{ text: 'OK' }]
-      );
+    } catch (error: any) {
+      if (!error.userCancelled) {
+        Alert.alert('Purchase Failed', error.message || 'Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,7 +151,7 @@ export default function PaywallScreen() {
 
   const openPrivacyPolicy = async () => {
     const privacyPolicyUrl = 'https://www.termsfeed.com/live/6e8222c1-1d38-4a79-8fb1-1005211dadad';
-    
+
     try {
       const supported = await Linking.canOpenURL(privacyPolicyUrl);
       if (supported) {
@@ -130,12 +173,44 @@ export default function PaywallScreen() {
     }
   };
 
+  const openTermsAndConditions = async () => {
+    const privacyPolicyUrl = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
+    try {
+      const supported = await Linking.canOpenURL(privacyPolicyUrl);
+      if (supported) {
+        await Linking.openURL(privacyPolicyUrl);
+      } else {
+        Alert.alert(
+          'Error',
+          'Unable to open Terms of Service. Please visit: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening Terms of Service:', error);
+      Alert.alert(
+        'Error',
+        'Unable to open Terms of Service. Please visit: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleRestorePurchases = async () => {
-    Alert.alert(
-      'Restore Purchases',
-      'In a real app, this would restore previous purchases from the app store.',
-      [{ text: 'OK' }]
-    );
+    try {
+      const customerInfo = await restorePurchases();
+      if (customerInfo.entitlements.active['premium']) {
+        const settings = await storageService.getUserSettings();
+        await storageService.saveUserSettings({ ...settings, isPremium: true });
+        Alert.alert('Success', 'Your purchases have been restored!');
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('No Purchases', 'No previous purchases found.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to restore purchases.');
+    }
   };
 
   return (
@@ -146,11 +221,11 @@ export default function PaywallScreen() {
           <TouchableOpacity style={styles.closeButton} onPress={handleContinueWithFree}>
             <X size={24} color="#6B7280" />
           </TouchableOpacity>
-          
+
           <View style={styles.crownContainer}>
             <Crown size={48} color="#FFD700" />
           </View>
-          
+
           <Text style={styles.title}>Unlock Premium</Text>
           <Text style={styles.subtitle}>
             Take your fasting journey to the next level with advanced features and insights
@@ -180,58 +255,105 @@ export default function PaywallScreen() {
         {/* Pricing Plans */}
         <View style={styles.pricingContainer}>
           <Text style={styles.pricingTitle}>Choose Your Plan</Text>
-          {SUBSCRIPTION_PLANS.map((plan) => (
-            <TouchableOpacity
-              key={plan.id}
-              style={[
-                styles.planCard,
-                selectedPlan.id === plan.id && styles.selectedPlan,
-                plan.popular && styles.popularPlan,
-              ]}
-              onPress={() => setSelectedPlan(plan)}
-            >
-              {plan.popular && (
-                <View style={styles.popularBadge}>
-                  <Star size={12} color="#000000" />
-                  <Text style={styles.popularText}>MOST POPULAR</Text>
-                </View>
-              )}
+          {packages
+            .sort((a, b) => a.product.price - b.product.price)
+            .map((pkg: any) => {
+              const isSelected = selectedPackage?.identifier === pkg.identifier;
+              const isPopular = pkg.packageType === 'ANNUAL';
               
-              <View style={styles.planHeader}>
-                <Text style={styles.planName}>{plan.name}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>{plan.price}</Text>
-                  <Text style={styles.duration}>{plan.duration}</Text>
-                </View>
-              </View>
+              const getFeatures = (packageType: string) => {
+                switch (packageType) {
+                  case 'MONTHLY':
+                    return [
+                      'All premium features',
+                      'Advanced analytics',
+                      'Custom fasting plans',
+                      'Export data',
+                      'Priority support',
+                    ];
+                  case 'ANNUAL':
+                    return [
+                      'All premium features',
+                      'Advanced analytics',
+                      'Custom fasting plans',
+                      'Export data',
+                      'Priority support',
+                      'Save 33% vs monthly',
+                    ];
+                  case 'LIFETIME':
+                    return [
+                      'All premium features',
+                      'Lifetime access',
+                      'Future updates included',
+                      'No recurring payments',
+                      'Best value',
+                    ];
+                  default:
+                    return ['All premium features'];
+                }
+              };
+              
+              const features = getFeatures(pkg.packageType);
 
-              <View style={styles.planFeatures}>
-                {plan.features.slice(0, 3).map((feature, index) => (
-                  <View key={index} style={styles.planFeatureItem}>
-                    <Check size={14} color="#10B981" />
-                    <Text style={styles.planFeatureText}>{feature}</Text>
+              return (
+                <TouchableOpacity
+                  key={pkg.identifier}
+                  style={[
+                    styles.planCard,
+                    isSelected && styles.selectedPlan,
+                    isPopular && styles.popularPlan,
+                  ]}
+                  onPress={() => setSelectedPackage(pkg)}
+                >
+                  {isPopular && (
+                    <View style={styles.popularBadge}>
+                      <Star size={12} color="#000000" />
+                      <Text style={styles.popularText}>MOST POPULAR</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.planHeader}>
+                    <Text style={styles.planName}>
+                      {pkg.packageType === 'MONTHLY' ? 'Monthly' :
+                       pkg.packageType === 'ANNUAL' ? 'Yearly' : 'Lifetime'}
+                    </Text>
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.price}>{pkg.product.priceString}</Text>
+                      <Text style={styles.duration}>
+                        {pkg.packageType === 'MONTHLY' ? 'per month' :
+                         pkg.packageType === 'ANNUAL' ? 'per year' : 'one-time'}
+                      </Text>
+                    </View>
                   </View>
-                ))}
-                {plan.features.length > 3 && (
-                  <Text style={styles.moreFeatures}>
-                    +{plan.features.length - 3} more features
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+
+                  <View style={styles.planFeatures}>
+                    {features.slice(0, 3).map((feature, index) => (
+                      <View key={index} style={styles.planFeatureItem}>
+                        <Check size={14} color="#10B981" />
+                        <Text style={styles.planFeatureText}>{feature}</Text>
+                      </View>
+                    ))}
+                    {features.length > 3 && (
+                      <Text style={styles.moreFeatures}>
+                        +{features.length - 3} more features
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
         </View>
 
         {/* CTA Buttons */}
         <View style={styles.ctaContainer}>
           <TouchableOpacity
-            style={[styles.upgradeButton, loading && styles.disabledButton]}
-            onPress={() => handleUpgrade(selectedPlan.id)}
-            disabled={loading}
+            style={[styles.upgradeButton, (loading || !selectedPackage) && styles.disabledButton]}
+            onPress={handleUpgrade}
+            disabled={loading || !selectedPackage}
           >
             <Crown size={20} color="#FFFFFF" />
             <Text style={styles.upgradeButtonText}>
-              {loading ? 'Processing...' : `Start ${selectedPlan.name} Plan`}
+              {loading ? 'Processing...' : `Start ${selectedPackage?.product.title || 'Premium'}`}
             </Text>
           </TouchableOpacity>
 
@@ -242,15 +364,20 @@ export default function PaywallScreen() {
           <TouchableOpacity style={styles.restoreButton} onPress={handleRestorePurchases}>
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           </TouchableOpacity>
+
+
+
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            • Cancel anytime • No hidden fees • 7-day free trial for new subscribers
-          </Text>
+
           <Text style={styles.termsText}>
-            By continuing, you agree to our Terms of Service and{' '}
+            By continuing, you agree to our {' '}
+            <Text style={styles.linkText} onPress={openTermsAndConditions}>
+              Terms of Service
+            </Text>
+            {' '} and{' '}
             <Text style={styles.linkText} onPress={openPrivacyPolicy}>
               Privacy Policy
             </Text>
@@ -265,6 +392,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
   scrollContent: {
     flexGrow: 1,

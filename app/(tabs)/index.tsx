@@ -9,6 +9,8 @@ import { FastingMethod } from '@/types';
 import { FASTING_METHODS } from '@/constants/fastingMethods';
 import { dateUtils } from '@/utils/dateUtils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { storageService } from '@/utils/storage';
+import Purchases from 'react-native-purchases';
 
 export default function TimerScreen() {
   const { colors } = useTheme();
@@ -21,6 +23,24 @@ export default function TimerScreen() {
       setSelectedMethod(fastingState.method);
     }
   }, [fastingState.method]);
+
+  useEffect(() => {
+    const syncPremiumStatus = async () => {
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        const isPremium = customerInfo.entitlements.active['premium'] !== undefined;
+        const settings = await storageService.getUserSettings();
+        
+        if (settings.isPremium !== isPremium) {
+          await storageService.saveUserSettings({ ...settings, isPremium });
+        }
+      } catch (error) {
+        console.error('Error syncing premium status:', error);
+      }
+    };
+
+    syncPremiumStatus();
+  }, []);
 
   const handleStartFasting = () => {
     Alert.alert(
