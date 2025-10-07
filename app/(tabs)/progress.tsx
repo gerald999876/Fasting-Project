@@ -10,7 +10,7 @@ import { dateUtils } from '@/utils/dateUtils';
 import { unitUtils } from '@/utils/unitUtils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
-import { PremiumUpgradeModal } from '@/components/PremiumUpgradeModal';
+import { router } from 'expo-router';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -39,7 +39,7 @@ export default function ProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [lastDataUpdate, setLastDataUpdate] = useState<Date | null>(null);
-  
+
   // Statistics
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
@@ -66,7 +66,7 @@ export default function ProgressScreen() {
       // Check if data is stale (older than 30 seconds) and refresh if needed
       const now = new Date();
       const shouldRefresh = !lastDataUpdate || (now.getTime() - lastDataUpdate.getTime()) > 30000;
-      
+
       if (shouldRefresh) {
         loadProgressData();
         loadPremiumStatus();
@@ -92,7 +92,7 @@ export default function ProgressScreen() {
         storageService.getHealthMetrics(),
         storageService.getUserSettings()
       ]);
-      
+
       setSessions(fastingSessions || []);
       setHealthMetrics(healthData || []);
       setUserSettings(settings || {
@@ -142,11 +142,7 @@ export default function ProgressScreen() {
     }
   };
 
-  const handleUpgrade = (planId: string) => {
-    setShowUpgradeModal(false);
-    // In a real app, this would integrate with RevenueCat or similar
-    console.log('Upgrading to plan:', planId);
-  };
+
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -167,9 +163,9 @@ export default function ProgressScreen() {
     }
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.premiumOverlay}
-        onPress={() => setShowUpgradeModal(true)}
+        onPress={() => router.push('/paywall')} // Navigate to paywall on press
       >
         <View style={[styles.premiumOverlayContent, { backgroundColor: colors.surface + 'E6' }]}>
           <Lock size={32} color={colors.textSecondary} />
@@ -192,16 +188,16 @@ export default function ProgressScreen() {
     try {
       const completedSessions = sessions.filter(s => s.completed && s.duration);
       const allSessions = sessions;
-      
+
       setTotalFasts(completedSessions.length);
       setCompletionRate(allSessions.length > 0 ? Math.round((completedSessions.length / allSessions.length) * 100) : 0);
-      
+
       // Calculate average duration
       if (completedSessions.length > 0) {
         const avgDuration = completedSessions.reduce((sum, session) => sum + (session.duration || 0), 0) / completedSessions.length;
         setAverageFastDuration(Math.round(avgDuration));
       }
-      
+
       // Calculate total fasting hours
       const totalHours = completedSessions.reduce((sum, session) => sum + ((session.duration || 0) / 60), 0);
       setTotalFastingHours(Math.round(totalHours));
@@ -238,31 +234,31 @@ export default function ProgressScreen() {
 
       for (const session of sortedSessions) {
         if (!session.startTime) continue;
-        
+
         const sessionDate = new Date(session.startTime);
         if (isNaN(sessionDate.getTime())) continue;
-        
+
         const dayStart = dateUtils.getDayStart(sessionDate);
-        
+
         if (!lastDate) {
           temp = 1;
         } else {
           const dayDiff = Math.abs(dayStart.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-          
+
           if (dayDiff <= 1) {
             temp++;
           } else {
             temp = 1;
           }
         }
-        
+
         longest = Math.max(longest, temp);
         lastDate = dayStart;
-        
+
         // Check if this contributes to current streak
         const today = dateUtils.getDayStart(new Date());
         const daysSinceSession = Math.abs(today.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24);
-        
+
         if (daysSinceSession <= 1) {
           current = temp;
         }
@@ -281,7 +277,7 @@ export default function ProgressScreen() {
     const now = new Date();
     let startDate: Date;
     let labels: string[];
-    
+
     switch (timeRange) {
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -289,26 +285,26 @@ export default function ProgressScreen() {
         break;
       case 'month':
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        labels = Array.from({ length: 4 }, (_, i) => `W${4-i}`);
+        labels = Array.from({ length: 4 }, (_, i) => `W${4 - i}`);
         break;
       case '3months':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         labels = ['3mo', '2mo', '1mo', 'Now'];
         break;
     }
-    
+
     return { startDate, labels };
   };
 
   const getFastingFrequencyData = () => {
     try {
       const { startDate, labels } = getTimeRangeData();
-      const filteredSessions = sessions.filter(s => 
+      const filteredSessions = sessions.filter(s =>
         s.completed && s.startTime && new Date(s.startTime) >= startDate
       );
 
       let data: number[];
-      
+
       if (timeRange === 'week') {
         data = Array.from({ length: 7 }, (_, i) => {
           const date = new Date();
@@ -325,7 +321,7 @@ export default function ProgressScreen() {
           weekStart.setDate(weekStart.getDate() - (3 - i) * 7);
           const weekEnd = new Date(weekStart);
           weekEnd.setDate(weekEnd.getDate() + 7);
-          
+
           return filteredSessions.filter(s => {
             if (!s.startTime) return false;
             const sessionDate = new Date(s.startTime);
@@ -338,7 +334,7 @@ export default function ProgressScreen() {
           monthStart.setMonth(monthStart.getMonth() - (3 - i));
           const monthEnd = new Date(monthStart);
           monthEnd.setMonth(monthEnd.getMonth() + 1);
-          
+
           return filteredSessions.filter(s => {
             if (!s.startTime) return false;
             const sessionDate = new Date(s.startTime);
@@ -357,12 +353,12 @@ export default function ProgressScreen() {
   const getAverageDurationData = () => {
     try {
       const { startDate, labels } = getTimeRangeData();
-      const filteredSessions = sessions.filter(s => 
+      const filteredSessions = sessions.filter(s =>
         s.completed && s.startTime && s.duration && new Date(s.startTime) >= startDate
       );
 
       let data: number[];
-      
+
       if (timeRange === 'week') {
         data = Array.from({ length: 7 }, (_, i) => {
           const date = new Date();
@@ -372,7 +368,7 @@ export default function ProgressScreen() {
             const sessionDate = new Date(s.startTime);
             return sessionDate.toDateString() === date.toDateString();
           });
-          
+
           if (daySessions.length === 0) return 0;
           return Math.round(daySessions.reduce((sum, s) => sum + (s.duration || 0), 0) / daySessions.length / 60);
         });
@@ -382,13 +378,13 @@ export default function ProgressScreen() {
           weekStart.setDate(weekStart.getDate() - (3 - i) * 7);
           const weekEnd = new Date(weekStart);
           weekEnd.setDate(weekEnd.getDate() + 7);
-          
+
           const weekSessions = filteredSessions.filter(s => {
             if (!s.startTime) return false;
             const sessionDate = new Date(s.startTime);
             return sessionDate >= weekStart && sessionDate < weekEnd;
           });
-          
+
           if (weekSessions.length === 0) return 0;
           return Math.round(weekSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / weekSessions.length / 60);
         });
@@ -398,13 +394,13 @@ export default function ProgressScreen() {
           monthStart.setMonth(monthStart.getMonth() - (3 - i));
           const monthEnd = new Date(monthStart);
           monthEnd.setMonth(monthEnd.getMonth() + 1);
-          
+
           const monthSessions = filteredSessions.filter(s => {
             if (!s.startTime) return false;
             const sessionDate = new Date(s.startTime);
             return sessionDate >= monthStart && sessionDate < monthEnd;
           });
-          
+
           if (monthSessions.length === 0) return 0;
           return Math.round(monthSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / monthSessions.length / 60);
         });
@@ -420,14 +416,14 @@ export default function ProgressScreen() {
   const getFastingMethodDistribution = () => {
     const completedSessions = sessions.filter(s => s.completed);
     const methodCounts: { [key: string]: number } = {};
-    
+
     completedSessions.forEach(session => {
       const methodName = session.method.name;
       methodCounts[methodName] = (methodCounts[methodName] || 0) + 1;
     });
 
     const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-    
+
     return Object.entries(methodCounts).map(([name, count], index) => ({
       name,
       count,
@@ -605,7 +601,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -619,11 +615,11 @@ export default function ProgressScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Text style={[styles.title, { color: colors.text }]}>Your Progress</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.refreshButton, 
-                { 
-                  backgroundColor: colors.surface, 
+                styles.refreshButton,
+                {
+                  backgroundColor: colors.surface,
                   borderColor: colors.border,
                   opacity: refreshing ? 0.6 : 1
                 }
@@ -631,9 +627,9 @@ export default function ProgressScreen() {
               onPress={onRefresh}
               disabled={refreshing}
             >
-              <RefreshCw 
-                size={20} 
-                color={colors.primary} 
+              <RefreshCw
+                size={20}
+                color={colors.primary}
                 style={refreshing ? styles.refreshingIcon : undefined}
               />
             </TouchableOpacity>
@@ -660,7 +656,7 @@ export default function ProgressScreen() {
               onPress={() => setTimeRange(range)}
             >
               <Text style={[
-                styles.timeRangeButtonText, 
+                styles.timeRangeButtonText,
                 { color: timeRange === range ? '#FFFFFF' : colors.textSecondary }
               ]}>
                 {range === '3months' ? '3 Months' : range.charAt(0).toUpperCase() + range.slice(1)}
@@ -1044,11 +1040,7 @@ export default function ProgressScreen() {
           )}
         </View>
 
-        <PremiumUpgradeModal
-          visible={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          onUpgrade={handleUpgrade}
-        />
+
       </ScrollView>
     </SafeAreaView>
   );

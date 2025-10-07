@@ -17,12 +17,12 @@ export default function IndexScreen() {
     try {
       // Initialize notification service
       await notificationService.initialize();
-      
-      
+
+
       const settings = await storageService.getUserSettings();
-      
+
       console.log('Settings loaded:', settings); // Debug log
-      
+
       if (!settings.onboardingCompleted) {
         console.log('Redirecting to onboarding'); // Debug log
         setRedirectPath('/onboarding');

@@ -9,7 +9,7 @@ import { storageService } from '@/utils/storage';
 import { notificationService } from '@/utils/notifications';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
-import { PremiumUpgradeModal } from '@/components/PremiumUpgradeModal';
+import { router } from 'expo-router';
 
 export default function SettingsScreen() {
   const { colors, toggleDarkMode } = useTheme();
@@ -28,7 +28,6 @@ export default function SettingsScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -64,23 +63,23 @@ export default function SettingsScreen() {
   const toggleNotifications = async (enabled: boolean) => {
     if (enabled) {
       let hasPermission = await notificationService.requestPermissions();
-      
+
       // Also try web notifications if on web platform
       if (!hasPermission && Platform.OS === 'web') {
         hasPermission = await notificationService.requestWebNotificationPermission();
       }
-      
+
       if (!hasPermission) {
         Alert.alert(
           'Permission Required',
-          Platform.OS === 'web' 
+          Platform.OS === 'web'
             ? 'Please allow notifications in your browser to receive fasting reminders.'
             : 'Please enable notifications in your device settings to receive fasting reminders.'
         );
         return;
       }
     }
-    
+
     const newSettings = { ...settings, notificationsEnabled: enabled };
     await saveSettings(newSettings);
   };
@@ -158,7 +157,7 @@ export default function SettingsScreen() {
 
   const showPrivacyPolicy = async () => {
     const privacyPolicyUrl = 'https://www.termsfeed.com/live/6e8222c1-1d38-4a79-8fb1-1005211dadad';
-    
+
     try {
       const supported = await Linking.canOpenURL(privacyPolicyUrl);
       if (supported) {
@@ -181,11 +180,7 @@ export default function SettingsScreen() {
   };
 
 
-  const handleUpgrade = (planId: string) => {
-    setShowUpgradeModal(false);
-    // In a real app, this would integrate with RevenueCat or similar
-    console.log('Upgrading to plan:', planId);
-  };
+
 
   const togglePremiumDemo = async () => {
     // Demo function to toggle premium status for testing
@@ -196,7 +191,7 @@ export default function SettingsScreen() {
 
   const handleExportData = async () => {
     if (exporting) return; // Prevent multiple exports
-    
+
     setExporting(true);
     try {
       // Get all data for export
@@ -218,7 +213,7 @@ export default function SettingsScreen() {
 
       // Create CSV content
       const csvContent = generateCSVContent(fastingSessions, healthMetrics, journalEntries);
-      
+
       // Create filename with timestamp
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `fasting-data-${timestamp}.csv`;
@@ -250,7 +245,7 @@ export default function SettingsScreen() {
 
         // Create file path
         const fileUri = FileSystem.documentDirectory + filename;
-        
+
         // Write CSV content to file
         await FileSystem.writeAsStringAsync(fileUri, csvContent, {
           encoding: FileSystem.EncodingType.UTF8,
@@ -310,13 +305,13 @@ export default function SettingsScreen() {
     const sessionHeaders = 'Date,Method,Start Time,End Time,Duration (hours),Completed\n';
     const metricHeaders = 'Date,Weight (kg),Water Intake (ml),Energy Level (1-5),Mood (1-5),Sleep Quality (1-5)\n';
     const entryHeaders = 'Date,Title,Mood,Tags,Content\n';
-    
+
     // Create CSV rows with proper escaping
     const sessionRows = sessions.map(s => {
       const startTime = s.startTime ? new Date(s.startTime) : new Date();
       const endTime = s.endTime ? new Date(s.endTime) : new Date();
       const duration = s.duration ? (s.duration / 60).toFixed(1) : '0'; // Convert minutes to hours
-      
+
       return [
         formatDate(startTime),
         escapeCSV(s.method?.name || 'Unknown'),
@@ -349,15 +344,15 @@ export default function SettingsScreen() {
         escapeCSV(e.content || '')
       ].join(',');
     }).join('\n');
-    
+
     // Add export metadata
     const exportDate = new Date().toLocaleString();
     const metadata = `# Fasting Data Export\n# Generated on: ${exportDate}\n# Total Sessions: ${sessions.length}\n# Total Health Metrics: ${metrics.length}\n# Total Journal Entries: ${entries.length}\n\n`;
-    
-    return metadata + 
-           `FASTING SESSIONS\n${sessionHeaders}${sessionRows}\n\n` +
-           `HEALTH METRICS\n${metricHeaders}${metricRows}\n\n` +
-           `JOURNAL ENTRIES\n${entryHeaders}${entryRows}`;
+
+    return metadata +
+      `FASTING SESSIONS\n${sessionHeaders}${sessionRows}\n\n` +
+      `HEALTH METRICS\n${metricHeaders}${metricRows}\n\n` +
+      `JOURNAL ENTRIES\n${entryHeaders}${entryRows}`;
   };
 
   if (loading) {
@@ -384,9 +379,9 @@ export default function SettingsScreen() {
         </View>
 
         {!settings.isPremium && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.premiumCard, { backgroundColor: '#FFD700' + '20', borderColor: '#FFD700' + '40' }]}
-            onPress={() => setShowUpgradeModal(true)}
+            onPress={() => router.push('/paywall')}
           >
             <View style={styles.premiumCardContent}>
               <Crown size={24} color="#FFD700" />
@@ -410,7 +405,7 @@ export default function SettingsScreen() {
             )}
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
           </View>
-          
+
           <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
@@ -432,7 +427,7 @@ export default function SettingsScreen() {
             <Bell size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
           </View>
-          
+
           <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>Enable Notifications</Text>
@@ -481,7 +476,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* Test Notification Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.testNotificationButton, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}
             onPress={testNotification}
           >
@@ -495,8 +490,8 @@ export default function SettingsScreen() {
             <User size={20} color={colors.success} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => {
               Alert.alert(
@@ -538,7 +533,7 @@ export default function SettingsScreen() {
             <BookOpen size={20} color={colors.warning} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Learn</Text>
           </View>
-          
+
           <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => {
             Alert.alert(
               'Intermittent Fasting Guide',
@@ -555,11 +550,11 @@ export default function SettingsScreen() {
             <Info size={20} color="#8B5CF6" />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
           </View>
-          
+
           <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showAbout}>
             <Text style={[styles.actionItemText, { color: colors.text }]}>About FastTrack</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showPrivacyPolicy}>
             <Text style={[styles.actionItemText, { color: colors.text }]}>Privacy Policy</Text>
           </TouchableOpacity>
@@ -571,7 +566,7 @@ export default function SettingsScreen() {
             <Crown size={20} color="#FFD700" />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium (Demo)</Text>
           </View>
-          
+
           <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>Premium Status</Text>
@@ -593,23 +588,23 @@ export default function SettingsScreen() {
             <Shield size={20} color={colors.error} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
           </View>
-          
+
           {/* Export Data - Premium Feature */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.exportItem, 
-              { 
-                backgroundColor: settings.isPremium ? colors.primary + '20' : colors.surface, 
+              styles.exportItem,
+              {
+                backgroundColor: settings.isPremium ? colors.primary + '20' : colors.surface,
                 borderColor: settings.isPremium ? colors.primary + '40' : colors.border,
                 opacity: settings.isPremium ? (exporting ? 0.7 : 1) : 0.7
               }
-            ]} 
-            onPress={settings.isPremium ? handleExportData : () => setShowUpgradeModal(true)}
+            ]}
+            onPress={settings.isPremium ? handleExportData : () => router.push('/paywall')}
             disabled={exporting}
           >
-            <Download 
-              size={16} 
-              color={settings.isPremium ? colors.primary : colors.textSecondary} 
+            <Download
+              size={16}
+              color={settings.isPremium ? colors.primary : colors.textSecondary}
               style={exporting ? { opacity: 0.7 } : undefined}
             />
             <View style={styles.exportContent}>
@@ -622,19 +617,15 @@ export default function SettingsScreen() {
             </View>
             {!settings.isPremium && <PremiumBadge size="small" />}
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={[styles.dangerItem, { backgroundColor: colors.error + '20', borderColor: colors.error + '40' }]} onPress={clearAllData}>
             <Trash2 size={16} color={colors.error} />
             <Text style={[styles.dangerItemText, { color: colors.error }]}>Clear All Data</Text>
           </TouchableOpacity>
-          
+
         </View>
 
-        <PremiumUpgradeModal
-          visible={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          onUpgrade={handleUpgrade}
-        />
+
       </ScrollView>
     </SafeAreaView>
   );

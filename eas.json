@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 7.1.3"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_OFFERING_ID": "default",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_peQedfRGpkYcXbbnKSyQRorAvEm",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "appl_peQedfRGpkYcXbbnKSyQRorAvEm"
+      }
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_OFFERING_ID": "default",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_peQedfRGpkYcXbbnKSyQRorAvEm",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "appl_peQedfRGpkYcXbbnKSyQRorAvEm"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

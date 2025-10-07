@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
-    "slug": "bolt-expo-nativewind",
+    "name": "FastTrack",
+    "slug": "Fast-Track",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "usesAppleSignIn": false,
+      "bundleIdentifier": "com.fastingapp.gerald999876",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Your permission allows us to access your media gallery so you can upload images from your photo library to your fast track."
+      }
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +38,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "14027a73-fc2c-4ace-816a-33a3426c2a50"
+      }
     }
   }
 }
