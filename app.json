@@ -2,7 +2,7 @@
   "expo": {
     "name": "FastTrack",
     "slug": "Fast-Track",
-    "version": "1.0.6",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "usesAppleSignIn": false,
       "bundleIdentifier": "com.fastingapp.gerald999876",
-      "buildNumber": "6",
+      "buildNumber": "8",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Your permission allows us to access your media gallery so you can upload images from your photo library to your fast track.",
         "NSCameraUsageDescription": "This app does not use the camera. This permission is required by a third-party library."

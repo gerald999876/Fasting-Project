@@ -5,21 +5,22 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Purchases from 'react-native-purchases';
 import { Platform } from 'react-native';
+import { EXPO_PUBLIC_REVENUECAT_API_KEY_IOS } from '@/constants/ApiUrl';
 
 
 export default function RootLayout() {
 
   useEffect(() => {
     const initializePurchases = async () => {
-      if (Platform.OS === 'ios' && process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS) {
-        await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS });
+      if (Platform.OS === 'ios' && EXPO_PUBLIC_REVENUECAT_API_KEY_IOS) {
+        await Purchases.configure({ apiKey: EXPO_PUBLIC_REVENUECAT_API_KEY_IOS });
       }
     };
 
     initializePurchases().then(async () => {
       const offerings = await Purchases.getOfferings();
       const customerInfo = await Purchases.getCustomerInfo();
-      
+
       console.log('Purchases SDK initialized');
       console.log('Premium status:', customerInfo.entitlements.active['premium'] !== undefined);
     }).catch(console.error);

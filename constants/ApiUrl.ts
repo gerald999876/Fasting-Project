@@ -1,0 +1,3 @@
+
+export const EXPO_PUBLIC_REVENUECAT_OFFERING_ID = 'default'
+export const EXPO_PUBLIC_REVENUECAT_API_KEY_IOS = 'appl_ANFmhiOCpTSQBlOVutfPomSobJb'
